@@ -12,11 +12,10 @@ class CarUseRepository implements ICarUseRepository {
         return carUseRepository.save(data)
     }
     
-    public async findOne(drive: Drive, car?: Car ): Promise<CarUse | null> {
+    public async findOne(id: number): Promise<CarUse | null> {
         return carUseRepository.findOne({
             where: {
-                drive,
-                car
+                id: id
             }
         })
     }
@@ -38,6 +37,24 @@ class CarUseRepository implements ICarUseRepository {
 
     public async update(data: CarUse): Promise<CarUse> {
         return carUseRepository.save({...data})
+    }
+
+    public async delete(id: number): Promise<void> {
+        carUseRepository.delete(id)
+    }
+
+    public async isCarInUse(carId: number): Promise<boolean> {
+        const result = await carUseRepository.findOne({
+            where: { car: { id:carId } }
+        });
+        return result != null;
+    }
+
+    public async isDriverInUse(driveId: number): Promise<boolean> {
+        const result = await carUseRepository.findOne({
+            where: { drive: { id: driveId } }
+        });
+        return result != null;
     }
 }
 

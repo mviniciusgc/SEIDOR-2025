@@ -12,9 +12,9 @@ class FindOneCarServer {
         private carUseRepository: ICarUseRepository,
     ) { }
 
-    public async execute(drive?: Drive, car?: Car): Promise<CarUse | null> {
+    public async execute(id: number): Promise<CarUse | null> {
 
-        return await this.carUseRepository.findOne(drive, car);
+        return await this.carUseRepository.findOne(id);
     }
     
 }

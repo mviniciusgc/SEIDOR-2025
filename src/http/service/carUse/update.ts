@@ -12,7 +12,7 @@ class UpdateCarUseServer {
 
     public async execute(id:number ): Promise<CarUser | Error> {
 
-        const carUse = await this.carUseRepository.findById(id);
+        const carUse = await this.carUseRepository.findOne(id);
         
         if(carUse == null){
             return new Error("registro não cadastrado")

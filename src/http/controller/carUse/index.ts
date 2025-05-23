@@ -2,7 +2,9 @@ import { Response, Request } from 'express';
 import { container } from 'tsyringe';
  import { CreateCarUserServer } from '../../service/carUse/create'
  import { FindCarUseServer } from '../../service/carUse/find'
+ import { FindOneCarServer } from '../../service/carUse/findOne'
  import { UpdateCarUseServer } from '../../service/carUse/update'
+ import { DeleteCarUserServer } from '../../service/carUse/delete'
  import { ICarUser } from '../../Repository/interfaceDTO/carUser'
 
 class CarUserController {
@@ -61,6 +63,43 @@ class CarUserController {
 
         }catch(e) {
             return response.status(400).json({message:`Erro ao criar o novo Carro: ${e}`})
+        }
+    }
+
+    public async findOne(request: Request, response: Response): Promise<Response> {
+        try{
+            const {id} = request.params ;
+
+            if(!id){
+                return response.status(400).send({message: "o Id não pode ser nullo"})
+            }
+
+            const findOne = container.resolve(FindOneCarServer)
+            const result = await findOne.execute(Number(id))
+
+            return response.status(200).json(result ?? {});
+
+        }catch(e) {
+            return response.status(400).json({message:`Erro ao buscar o Carro: ${e}`})
+        }
+    }
+
+    public async delete(request: Request, response: Response): Promise<Response> {
+        try{
+
+            const {id} = request.params ;
+
+            if(!id){
+                return response.status(400).send({message: "o Id não pode ser nullo"})
+            }
+
+            const deleteCarUser = container.resolve(DeleteCarUserServer)
+            await deleteCarUser.execute(Number(id))
+
+            return response.status(200).json("Excluido com sucesso");
+
+        }catch(e) {
+            return response.status(400).json({message:`${e}`})
         }
     }
 }

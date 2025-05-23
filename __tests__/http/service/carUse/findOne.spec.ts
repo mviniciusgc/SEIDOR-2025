@@ -1,44 +1,51 @@
 import 'reflect-metadata';
+import { container } from 'tsyringe';
 import { FindOneCarServer } from '../../../../src/http/service/carUse/findOne';
 import { ICarUseRepository } from '../../../../src/http/Repository/interface/ICarUseRepository';
 import CarUse from '../../../../src/db/entity/carUse';
-import Drive from '../../../../src/db/entity/drive';
-import Car from '../../../../src/db/entity/car';
 
 describe('FindOneCarServer', () => {
-    let findOneCarServer: FindOneCarServer;
-    let carUseRepositoryMock: jest.Mocked<ICarUseRepository>;
+  let findOneCarServer: FindOneCarServer;
+  let mockCarUseRepository: jest.Mocked<ICarUseRepository>;
 
-    beforeEach(() => {
-        carUseRepositoryMock = {
-            findOne: jest.fn()
-        } as unknown as jest.Mocked<ICarUseRepository>;
+  beforeEach(() => {
+    // Mock do repositório
+    mockCarUseRepository = {
+      findOne: jest.fn(),
+      // pode adicionar outros métodos se precisar, com jest.fn()
+    } as unknown as jest.Mocked<ICarUseRepository>;
 
-        findOneCarServer = new FindOneCarServer(carUseRepositoryMock);
-    });
+    // Resolver a dependência via tsyringe container
+    container.registerInstance('CarUseRepository', mockCarUseRepository);
 
-    it('deve retornar um CarUse quando encontrado', async () => {
-        const drive: Drive = { id: 1 } as Drive;
-        const car: Car = { id: 2 } as Car;
-        const carUse: CarUse = { id: 3, drive, car } as CarUse;
+    // Instanciar o service
+    findOneCarServer = container.resolve(FindOneCarServer);
+  });
 
-        carUseRepositoryMock.findOne.mockResolvedValue(carUse);
+  it('deve retornar um CarUse quando encontrar pelo id', async () => {
+    const mockCarUse: CarUse = {
+      id: 1,
+      car: {} as any,   // preencha conforme sua entidade CarUse
+      drive: {} as any,
+      dataInicio: new Date(),
+      dataFim: null,
+      motivo: 'teste',
+    };
 
-        const result = await findOneCarServer.execute(drive, car);
+    mockCarUseRepository.findOne.mockResolvedValue(mockCarUse);
 
-        expect(carUseRepositoryMock.findOne).toHaveBeenCalledWith(drive, car);
-        expect(result).toBe(carUse);
-    });
+    const result = await findOneCarServer.execute(1);
 
-    it('deve retornar null quando não encontrar um CarUse', async () => {
-        const drive: Drive = { id: 1 } as Drive;
-        const car: Car = { id: 2 } as Car;
+    expect(mockCarUseRepository.findOne).toHaveBeenCalledWith(1);
+    expect(result).toEqual(mockCarUse);
+  });
 
-        carUseRepositoryMock.findOne.mockResolvedValue(null);
+  it('deve retornar null se não encontrar o CarUse', async () => {
+    mockCarUseRepository.findOne.mockResolvedValue(null);
 
-        const result = await findOneCarServer.execute(drive, car);
+    const result = await findOneCarServer.execute(999);
 
-        expect(carUseRepositoryMock.findOne).toHaveBeenCalledWith(drive, car);
-        expect(result).toBeNull();
-    });
+    expect(mockCarUseRepository.findOne).toHaveBeenCalledWith(999);
+    expect(result).toBeNull();
+  });
 });

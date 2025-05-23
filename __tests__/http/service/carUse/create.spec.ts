@@ -5,101 +5,134 @@ import { ICarRepository } from '../../../../src/http/Repository/interface/ICarRe
 import { IDriveRepository } from '../../../../src/http/Repository/interface/IDriveRepository';
 import { ICarUser } from '../../../../src/http/Repository/interfaceDTO/carUser';
 import CarUse from '../../../../src/db/entity/carUse';
-import Drive from '../../../../src/db/entity/drive';
-import Car from '../../../../src/db/entity/car';
+
+// Mock das dependências
+const mockCarUseRepository: jest.Mocked<ICarUseRepository> = {
+    isCarInUse: jest.fn(),
+    isDriverInUse: jest.fn(),
+    create: jest.fn(),
+    findOne: jest.fn()
+} as any;
+
+const mockCarRepository: jest.Mocked<ICarRepository> = {
+    findOne: jest.fn()
+} as any;
+
+const mockDriveRepository: jest.Mocked<IDriveRepository> = {
+    findOne: jest.fn()
+} as any;
 
 describe('CreateCarUserServer', () => {
     let createCarUserServer: CreateCarUserServer;
-    let carUseRepositoryMock: jest.Mocked<ICarUseRepository>;
-    let carRepositoryMock: jest.Mocked<ICarRepository>;
-    let driveRepositoryMock: jest.Mocked<IDriveRepository>;
 
     beforeEach(() => {
-        carUseRepositoryMock = {
-            findOne: jest.fn(),
-            create: jest.fn()
-        } as unknown as jest.Mocked<ICarUseRepository>;
-
-        carRepositoryMock = {
-            findOne: jest.fn()
-        } as unknown as jest.Mocked<ICarRepository>;
-
-        driveRepositoryMock = {
-            findOne: jest.fn()
-        } as unknown as jest.Mocked<IDriveRepository>;
-
+        jest.clearAllMocks();
         createCarUserServer = new CreateCarUserServer(
-            carUseRepositoryMock,
-            carRepositoryMock,
-            driveRepositoryMock
+            mockCarUseRepository,
+            mockCarRepository,
+            mockDriveRepository
         );
     });
 
-    it('deve retornar erro se o motorista não for encontrado', async () => {
-        const data: ICarUser = { driveId: 1, carId: 1 } as ICarUser;
+    it('deve retornar erro se motorista não for encontrado', async () => {
+        mockDriveRepository.findOne.mockResolvedValue(null);
 
-        driveRepositoryMock.findOne.mockResolvedValue(null);
-
-        const result = await createCarUserServer.execute(data);
+        const result = await createCarUserServer.execute({ driveId: 1, carId: 1 } as ICarUser);
 
         expect(result).toEqual(new Error('motorista não encontrado'));
     });
 
-    it('deve retornar erro se o motorista já utiliza outro veículo', async () => {
-        const data: ICarUser = { driveId: 1, carId: 1 } as ICarUser;
-        const drive: Drive = { id: 1 } as Drive;
+    it('deve retornar erro se carro não for encontrado', async () => {
+        const mockDrive = { id: 1, nome: 'Teste Motorista' }; 
+        
+        mockDriveRepository.findOne.mockResolvedValue(mockDrive);
+        mockCarRepository.findOne.mockResolvedValue(null);
 
-        driveRepositoryMock.findOne.mockResolvedValue(drive);
-        carUseRepositoryMock.findOne.mockResolvedValueOnce({ id: 1 } as CarUse);
+        const result = await createCarUserServer.execute({ driveId: 1, carId: 1 } as ICarUser);
 
-        const result = await createCarUserServer.execute(data);
-
-        expect(result).toEqual(new Error('motorista já utiliza outro veiculo'));
+        expect(result).toEqual(new Error('o carro não encontrado'));
     });
 
-    it('deve retornar erro se o carro não for encontrado', async () => {
-        const data: ICarUser = { driveId: 1, carId: 1 } as ICarUser;
-        const drive: Drive = { id: 1 } as Drive;
+    it('deve retornar erro se carro já estiver em uso', async () => {
+        const mockDrive = { id: 1, nome: 'Teste Motorista' }; 
+        const mockCar = {
+         id: 1,
+         modelo: 'Fusca',
+         placa: 'ABC-1234',
+         cor: 'Azul',
+         marca: 'Volkswagen'
+         };
 
-        driveRepositoryMock.findOne.mockResolvedValue(drive);
-        carUseRepositoryMock.findOne.mockResolvedValueOnce(null); // motorista não usa carro
-        carRepositoryMock.findOne.mockResolvedValue(null); // carro não encontrado
 
-        const result = await createCarUserServer.execute(data);
+        mockDriveRepository.findOne.mockResolvedValue(mockDrive);
+        mockCarRepository.findOne.mockResolvedValue(mockCar);
+        mockCarUseRepository.isCarInUse.mockResolvedValue(true);
 
-        expect(result).toEqual(new Error('o carro já está sendo utilizado por outro motorista'));
-    });
-
-    it('deve retornar erro se o carro já estiver em uso', async () => {
-        const data: ICarUser = { driveId: 1, carId: 1 } as ICarUser;
-        const drive: Drive = { id: 1 } as Drive;
-        const car: Car = { id: 1 } as Car;
-
-        driveRepositoryMock.findOne.mockResolvedValue(drive);
-        carUseRepositoryMock.findOne.mockResolvedValueOnce(null); // motorista não usa carro
-        carRepositoryMock.findOne.mockResolvedValue(car);
-        carUseRepositoryMock.findOne.mockResolvedValueOnce({ id: 2 } as CarUse); // carro já em uso
-
-        const result = await createCarUserServer.execute(data);
+        const result = await createCarUserServer.execute({ driveId: 1, carId: 1 } as ICarUser);
 
         expect(result).toEqual(new Error('o carro já esta em uso'));
     });
 
-    it('deve criar e retornar o vínculo CarUse com sucesso', async () => {
-        const data: ICarUser = { driveId: 1, carId: 1, motivo: 'Serviço' } as ICarUser;
-        const drive: Drive = { id: 1 } as Drive;
-        const car: Car = { id: 1 } as Car;
-        const newCarUse: CarUse = { car, drive, ...data } as CarUse;
+    it('deve retornar erro se motorista já estiver utilizando outro veículo', async () => {
+        const mockDrive = { id: 1, nome: 'Teste Motorista' }; 
+        const mockCar = {
+         id: 1,
+         modelo: 'Fusca',
+         placa: 'ABC-1234',
+         cor: 'Azul',
+         marca: 'Volkswagen'
+         };
 
-        driveRepositoryMock.findOne.mockResolvedValue(drive);
-        carUseRepositoryMock.findOne.mockResolvedValueOnce(null); // motorista não usa carro
-        carRepositoryMock.findOne.mockResolvedValue(car);
-        carUseRepositoryMock.findOne.mockResolvedValueOnce(null); // carro não em uso
-        carUseRepositoryMock.create.mockResolvedValue(newCarUse);
+        mockDriveRepository.findOne.mockResolvedValue(mockDrive);
+        mockCarRepository.findOne.mockResolvedValue(mockCar);
+        mockCarUseRepository.isCarInUse.mockResolvedValue(false);
+        mockCarUseRepository.isDriverInUse.mockResolvedValue(true);
+
+        const result = await createCarUserServer.execute({ driveId: 1, carId: 1 } as ICarUser);
+
+        expect(result).toEqual(new Error('o motorista já está utilizando outro veículo'));
+    });
+
+    it('deve criar um novo CarUse com sucesso', async () => {
+        const mockDrive = { id: 1, nome: 'Teste Motorista' }; 
+        const mockCar = {
+         id: 1,
+         modelo: 'Fusca',
+         placa: 'ABC-1234',
+         cor: 'Azul',
+         marca: 'Volkswagen'
+         };
+        const mockNewCarUse = { 
+        id: 1, 
+        car: mockCar, 
+        drive: mockDrive,
+        dataInicio: new Date('2025-05-23T00:00:00Z'),
+        dataFim: null,
+        motivo: 'Teste'
+    };
+
+        mockDriveRepository.findOne.mockResolvedValue(mockDrive);
+        mockCarRepository.findOne.mockResolvedValue(mockCar);
+        mockCarUseRepository.isCarInUse.mockResolvedValue(false);
+        mockCarUseRepository.isDriverInUse.mockResolvedValue(false);
+        mockCarUseRepository.create.mockResolvedValue(mockNewCarUse);
+
+        const data: ICarUser = { 
+            id: 1,                 
+            driveId: 1, 
+            carId: 1,
+            dataInicio: new Date('2025-05-23T00:00:00Z'), 
+            dataFim: new Date('2025-05-25T00:00:00Z'),          
+            motivo: 'Teste'         
+            };
 
         const result = await createCarUserServer.execute(data);
 
-        expect(carUseRepositoryMock.create).toHaveBeenCalledWith(newCarUse);
-        expect(result).toBe(newCarUse);
+        expect(result).toEqual(mockNewCarUse);
+        expect(mockCarUseRepository.create).toHaveBeenCalledWith({
+            ...data,
+            car: mockCar,
+            drive: mockDrive
+        });
     });
 });

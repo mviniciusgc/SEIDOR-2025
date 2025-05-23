@@ -25,22 +25,23 @@ class CreateCarUserServer {
             return new Error("motorista não encontrado")
         }
 
-        const driveUse = await this.carUseRepository.findOne(drive);
-        
-        if(driveUse != null){
-            return new Error("motorista já utiliza outro veiculo")
-        }
-        
         const car = await this.carRepository.findOne(data.carId);
         
         if(!car){
-            return  new Error("o carro já está sendo utilizado por outro motorista")
+            return  new Error("o carro não encontrado")
         }
         
-        const carUse = await this.carUseRepository.findOne(undefined,car);
-        
-        if(carUse != null){
+        // Verifica se o carro já está sendo utilizando        
+        const carUse = await this.carUseRepository.isCarInUse(car.id);
+        if(carUse){
             return  new Error("o carro já esta em uso")
+        }
+
+        // Verifica se o motorista já está utilizando outro veículo        
+        const driveUse = await this.carUseRepository.isDriverInUse(drive.id!);
+        
+        if(driveUse){
+            return  new Error("o motorista já está utilizando outro veículo")
         }
         
         const newCar: CarUse = {car,drive,...data}
